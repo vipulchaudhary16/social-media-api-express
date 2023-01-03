@@ -5,3 +5,7 @@
 3. **dotenv** - to give security to our configuration credentials
 4. **helmet** - securing request headers 
 5. **morgan** - login middleware, shows result taken time
+
+### We have .env files, which having,
+
+1. MongoDB Atlas connection URI 
