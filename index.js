@@ -8,6 +8,7 @@ const morgan = require("morgan");
 
 const userRoute = require("./routers/users");
 const authRoute = require("./routers/auth");
+const postRoute = require("./routers/posts");
 
 dotenv.config();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +32,7 @@ app.use(helmet());
 
 app.use("/api/users", userRoute);
 app.use("/api/auth", authRoute);
+app.use("/api/posts", postRoute);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
