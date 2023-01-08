@@ -37,11 +37,22 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
 
-    following: {
+    followings: {
       type: Array,
       default: [],
     },
-
+    bio: {
+      type: String,
+      max: 50,
+    },
+    city: {
+      type: String,
+      max: 50,
+    },
+    relationship: {
+      type: Number,
+      enum: [1, 2, 3], // 1 = single, 2 = married, 3 = in a relationship
+    },
     isAdmin: {
       type: Boolean,
       default: false,
