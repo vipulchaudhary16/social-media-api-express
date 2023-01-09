@@ -44,7 +44,7 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// Get a user
+// Get a user by id
 router.get("/:id", async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -96,5 +96,26 @@ router.put("/:id/unfollow", async (req, res) => {
     res.status(403).json("You can't unfollow yourself");
   }
 });
+
+//search users by username including the username
+router.get("/search/:username", async (req, res) => {
+  let success = false
+  try {
+    const username = req.params.username;
+    if(username.length < 3) return res.status(400).json({success : success, message : "Atleast 3 character required"}); // Bad request
+    const user = await User.find({ username: { $regex: username } });
+    data = []
+    // We don't want to send the _id, isAdmin, __v, password and updatedAt to the client
+    user.forEach(item => {
+      const {_id, password, updatedAt, isAdmin, __v, ...other } = item._doc;
+      data.push(other)
+    });
+    if(user.length > 0) success = true
+    res.status(200).json({success : success, data : data});
+  } catch (error) {
+    return res.status(500).json({success : success , message : "Internal Server Error"}); // Internal server error
+  }
+});
+  
 
 module.exports = router;
