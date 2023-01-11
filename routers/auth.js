@@ -5,6 +5,18 @@ const bcrypt = require("bcrypt");
 /* Register */
 routers.post("/register", async (req, res) => {
   try {
+    let newuser = await User.findOne({ email: req.body.email });
+    if (newuser != null) {
+      res.status(400).json({ message: "Email Already Exists" });
+      return;
+    }
+
+    newuser = await User.findOne({ username: req.body.username });
+    if (newuser != null) {
+      res.status(400).json({ message: "Username Already Exists" });
+      return;
+    }
+
     /* Hasing passoword */
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(req.body.password, salt);
@@ -28,16 +40,19 @@ routers.post("/login", async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
     if (!user) {
-        /* not found */
+      /* not found */
       res.status(404).json("User not found");
     } else {
-        const validatePassoword = await bcrypt.compare(req.body.password, user.password)
-        if(!validatePassoword){
-            /* bad request */
-            res.status(400).json("Wrong Password")
-        } else {
-            res.status(200).json(user)
-        }
+      const validatePassoword = await bcrypt.compare(
+        req.body.password,
+        user.password
+      );
+      if (!validatePassoword) {
+        /* bad request */
+        res.status(400).json("Wrong Password");
+      } else {
+        res.status(200).json(user);
+      }
     }
   } catch (error) {
     //Internal server error
