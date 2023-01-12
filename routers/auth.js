@@ -40,12 +40,13 @@ routers.post("/register", async (req, res) => {
 });
 
 /* Send Verification Mail */
-const sendVerificationMail = async ({ _id, email }, res) => {
+const sendVerificationMail = async ({ username, _id, email }, res) => {
   const otp = Math.floor(100000 + Math.random() * 900000);
 
   let templateParams = {
     to_email: email,
     otp: otp,
+    name: username,
   };
 
   try {
@@ -59,30 +60,59 @@ const sendVerificationMail = async ({ _id, email }, res) => {
     }).save();
 
     await OTPVerfication.save();
-
     emailjs
       .send(
         process.env.MAILJS_SERVER,
         process.env.MAILJS_TEMPLATE,
-        'QWCZ3Yywnf82gvJ8P',
         templateParams,
+        process.env.MAILJS_USER
       )
-      .then((err, res) => {
-        if (err) {
-          console.log(err);
-        }
-        console.log(res);
+      .then(() => {
+          res.status(200).json({message: "Mail sent successfully"});
       })
-      .catch((err) => {
-        console.log(err);
+      .catch(() => {
+        res.status(500).json({message: "Error sending mail"});
       });
   } catch (error) {
-    res.status(500).json(error);
+    res.status(500).json({message: "Error sending mail"});
   }
 };
 
 /* Verify */
-routers.post("/verify", async (req, res) => {});
+routers.post("/verify", async (req, res) => {
+  /* body will have userId and otp*/
+  try {
+    let { userId, otp } = req.body;
+    const user = await UserOTP.findOne({ userId: userId }); // find user by id
+    if (user == null) {
+      // user not found
+      res.status(404).json({ message: "User not found" });
+    } else {
+      const validateOTP = await bcrypt.compare(otp, user.otp);
+      if (!validateOTP) {
+        // invalid otp
+        res.status(400).json({ message: "Invalid OTP" });
+      } else {
+        const currentTime = new Date();
+        if (Date.now() > user.expiresAt) {
+          // otp expired
+          await UserOTP.deleteOne({ userId: userId });
+          res.status(400).json({ message: "OTP Expired" });
+        } else {
+          await User.updateOne(
+            { _id: userId },
+            { $set: { mailVerified: true } }
+          );
+          await UserOTP.deleteOne({ userId: userId });
+          res.status(200).json({ message: "OTP Verified" });
+        }
+      }
+    }
+  } catch (err) {
+    res.status(500).json({ message: "Internal Server Error" });
+    console.log(err);
+  }
+});
 /* Login */
 routers.post("/login", async (req, res) => {
   try {
