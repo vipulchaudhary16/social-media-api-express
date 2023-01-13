@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const userOTP = new Schema({
-  userId: {
+  email: {
     type: String,
     required: true,
   },

@@ -53,7 +53,7 @@ const sendVerificationMail = async ({ username, _id, email }, res) => {
     const hashedOTP = await bcrypt.hash(otp.toString(), 10);
 
     const OTPVerfication = await new UserOTP({
-      userId: _id,
+      email: email,
       otp: hashedOTP,
       createdAt: new Date(),
       expiresAt: new Date(new Date().getTime() + 5 * 60 * 1000), // 5 minutes
@@ -68,13 +68,13 @@ const sendVerificationMail = async ({ username, _id, email }, res) => {
         process.env.MAILJS_USER
       )
       .then(() => {
-          res.status(200).json({message: "Mail sent successfully"});
+        res.status(200).json({ message: "Mail sent successfully" });
       })
       .catch(() => {
-        res.status(500).json({message: "Error sending mail"});
+        res.status(500).json({ message: "Error sending mail" });
       });
   } catch (error) {
-    res.status(500).json({message: "Error sending mail"});
+    res.status(500).json({ message: "Error sending mail" });
   }
 };
 
@@ -82,8 +82,8 @@ const sendVerificationMail = async ({ username, _id, email }, res) => {
 routers.post("/verify", async (req, res) => {
   /* body will have userId and otp*/
   try {
-    let { userId, otp } = req.body;
-    const user = await UserOTP.findOne({ userId: userId }); // find user by id
+    let { email, otp } = req.body;
+    const user = await UserOTP.findOne({ email: email }); // find user by id
     if (user == null) {
       // user not found
       res.status(404).json({ message: "User not found" });
@@ -96,14 +96,14 @@ routers.post("/verify", async (req, res) => {
         const currentTime = new Date();
         if (Date.now() > user.expiresAt) {
           // otp expired
-          await UserOTP.deleteOne({ userId: userId });
+          await UserOTP.deleteOne({ email: email });
           res.status(400).json({ message: "OTP Expired" });
         } else {
           await User.updateOne(
-            { _id: userId },
+            { email: email },
             { $set: { mailVerified: true } }
           );
-          await UserOTP.deleteOne({ userId: userId });
+          await UserOTP.deleteOne({ email: email });
           res.status(200).json({ message: "OTP Verified" });
         }
       }
@@ -127,8 +127,11 @@ routers.post("/login", async (req, res) => {
       );
       if (!validatePassoword) {
         /* bad request */
-        res.status(400).json("Wrong Password");
+        res.status(400).json({message: "Invalid Credentials"});
+      } else if (!user.mailVerified) {
+        res.status(403).json({ message: "Please verify your mail" });
       } else {
+        /* success */
         res.status(200).json(user);
       }
     }
