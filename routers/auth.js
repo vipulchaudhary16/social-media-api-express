@@ -1,6 +1,7 @@
 const routers = require("express").Router();
 const User = require("../models/Users");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const UserOTP = require("../models/UserOTP");
 const emailjs = require("emailjs-com");
 
@@ -113,6 +114,7 @@ routers.post("/verify", async (req, res) => {
     console.log(err);
   }
 });
+
 /* Login */
 routers.post("/login", async (req, res) => {
   try {
@@ -132,7 +134,16 @@ routers.post("/login", async (req, res) => {
         res.status(403).json({ message: "Please verify your mail" });
       } else {
         /* success */
-        res.status(200).json(user);
+        const user_json = user.toJSON();
+        const jwt_data = {
+            id: user_json._id,
+            username: user_json.username,
+        };
+        const token = jwt.sign(jwt_data, process.env.JWT_SECRET, {
+          expiresIn: "1w",
+        });
+        const { password, _id, ...userWithoutPassword } = user_json;
+        res.status(200).json({ 'auth-token': token , user: userWithoutPassword});
       }
     }
   } catch (error) {
