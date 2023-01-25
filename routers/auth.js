@@ -3,7 +3,19 @@ const User = require("../models/Users");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const UserOTP = require("../models/UserOTP");
-const emailjs = require("emailjs-com");
+const nodemailer = require("nodemailer");
+
+const dotenv = require("dotenv");
+dotenv.config();
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  host: "smtp.gmail.com",
+  auth: {
+    user: process.env.MAIL,
+    pass: process.env.PASSWORD,
+  },
+});
 
 /* Register */
 routers.post("/register", async (req, res) => {
@@ -44,44 +56,37 @@ routers.post("/register", async (req, res) => {
 const sendVerificationMail = async ({ username, _id, email }, res) => {
   const otp = Math.floor(100000 + Math.random() * 900000);
 
-  let templateParams = {
-    to_email: email,
-    otp: otp,
-    name: username,
+  var mailOptions = {
+    from: "yourcircle.we@gmail.com",
+    to: email,
+    subject: "OTP Verification for Your Circle",
+    html: `Your OTP is ${otp}`,
   };
 
   try {
     const hashedOTP = await bcrypt.hash(otp.toString(), 10);
-
-    const OTPVerfication = await new UserOTP({
-      email: email,
-      otp: hashedOTP,
-      createdAt: new Date(),
-      expiresAt: new Date(new Date().getTime() + 5 * 60 * 1000), // 5 minutes
-    }).save();
-
-    await OTPVerfication.save();
-    emailjs
-      .send(
-        process.env.MAILJS_SERVER,
-        process.env.MAILJS_TEMPLATE,
-        templateParams,
-        process.env.MAILJS_USER
-      )
-      .then(() => {
-        res.status(200).json({ message: "Mail sent successfully" });
-      })
-      .catch(() => {
+    transporter.sendMail(mailOptions, async (error, info) => {
+      if (error) {
         res.status(500).json({ message: "Error sending mail" });
-      });
+      } else {
+        const OTPVerfication = await new UserOTP({
+          email: email,
+          otp: hashedOTP,
+          createdAt: new Date(),
+          expiresAt: new Date(new Date().getTime() + 5 * 60 * 1000), // 5 minutes
+        }).save();
+        res.status(200).json({ message: "OTP sent" });
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: "Error sending mail" });
+    console.log(error);
   }
 };
 
 /* Verify */
 routers.post("/verify", async (req, res) => {
-  /* body will have userId and otp*/
+  /* body will have userId and otp */
   try {
     let { email, otp } = req.body;
     const user = await UserOTP.findOne({ email: email }); // find user by id
@@ -129,21 +134,23 @@ routers.post("/login", async (req, res) => {
       );
       if (!validatePassoword) {
         /* bad request */
-        res.status(400).json({message: "Invalid Credentials"});
+        res.status(400).json({ message: "Invalid Credentials" });
       } else if (!user.mailVerified) {
         res.status(403).json({ message: "Please verify your mail" });
       } else {
         /* success */
         const user_json = user.toJSON();
         const jwt_data = {
-            id: user_json._id,
-            username: user_json.username,
+          id: user_json._id,
+          username: user_json.username,
         };
         const token = jwt.sign(jwt_data, process.env.JWT_SECRET, {
           expiresIn: "1w",
         });
         const { password, _id, ...userWithoutPassword } = user_json;
-        res.status(200).json({ 'auth-token': token , user: userWithoutPassword});
+        res
+          .status(200)
+          .json({ "auth-token": token, user: userWithoutPassword });
       }
     }
   } catch (error) {
